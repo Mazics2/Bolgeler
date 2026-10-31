@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>Bolgeler</AssemblyName>
+    <RootNamespace>Bolgeler</RootNamespace>
+    <Authors>surfevo</Authors>
+    <Company>surfevo</Company>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SwiftlyS2.CS2" Version="1.5.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Panorama kaynaklari derlenmez; cikti klasorune referans olarak kopyalanir. -->
+  <ItemGroup>
+    <None Include="panorama\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Yerel CS2 sunucusu mevcutsa build sonrasi dogrudan sunucu eklenti klasorune kopyalar.
+  -->
+  <PropertyGroup>
+    <LocalServerPluginDir Condition="'$(LocalServerPluginDir)' == ''">C:\Users\surfevo\Desktop\Works\CS2\Sunucu\game\csgo\addons\swiftlys2\plugins\Bolgeler</LocalServerPluginDir>
+  </PropertyGroup>
+  <Target Name="DeployToLocalServer" AfterTargets="Build" Condition="Exists('$(LocalServerPluginDir)')">
+    <ItemGroup>
+      <DeployFiles Include="$(OutputPath)$(AssemblyName).dll;$(OutputPath)$(AssemblyName).pdb;$(OutputPath)$(AssemblyName).deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(LocalServerPluginDir)" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Bolgeler -&gt; $(LocalServerPluginDir) (yerel test sunucusu) kopyalandi." />
+  </Target>
+
+</Project>

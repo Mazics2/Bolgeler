@@ -1,0 +1,372 @@
+/* Bolgeler Custom Panorama HUD Stilleri */
+
+.bz_root {
+    width: 100%;
+    height: 100%;
+}
+
+/* ========================================================================= */
+/* BÖLGE BİLGİ PANELİ (SOL ALT)                                             */
+/* ========================================================================= */
+.bz_info_panel {
+    horizontal-align: left;
+    vertical-align: bottom;
+    margin-left: 40px;
+    margin-bottom: 60px;
+    opacity: 0.0;
+    transform: translateY(20px);
+    transition: opacity 0.25s ease-in-out, transform 0.25s ease-in-out;
+}
+
+.bz_info_panel.bz_open {
+    opacity: 1.0;
+    transform: translateY(0px);
+}
+
+.bz_info_badge {
+    flow-children: down;
+    background-color: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.5);
+    border-radius: 8px;
+    padding: 8px 16px;
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.bz_info_title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00e5ff;
+    letter-spacing: 1px;
+}
+
+.bz_info_effects {
+    font-size: 13px;
+    color: #e2e8f0;
+    margin-top: 2px;
+}
+
+/* ========================================================================= */
+/* ÇİZİM MODU PANELİ (ORTA ÜST)                                              */
+/* ========================================================================= */
+.bz_draw_panel {
+    horizontal-align: center;
+    vertical-align: top;
+    margin-top: 80px;
+    opacity: 0.0;
+    transform: scale3d(0.9, 0.9, 1.0);
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.bz_draw_panel.bz_open {
+    opacity: 1.0;
+    transform: scale3d(1.0, 1.0, 1.0);
+}
+
+.bz_draw_card {
+    flow-children: down;
+    background-color: rgba(15, 23, 42, 0.92);
+    border: 2px solid #00ff88;
+    border-radius: 10px;
+    padding: 14px 24px;
+    width: 580px;
+    box-shadow: 0px 8px 28px rgba(0, 255, 136, 0.25);
+}
+
+.bz_draw_header {
+    flow-children: right;
+    width: 100%;
+}
+
+.bz_draw_title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00ff88;
+    letter-spacing: 1px;
+}
+
+.bz_draw_steps {
+    flow-children: right;
+    horizontal-align: right;
+    vertical-align: center;
+}
+
+.bz_step {
+    font-size: 12px;
+    font-weight: bold;
+    color: #64748b;
+    background-color: rgba(30, 41, 59, 0.8);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.bz_step.bz_active {
+    color: #ffffff;
+    background-color: #00ff88;
+    box-shadow: 0px 0px 8px rgba(0, 255, 136, 0.6);
+}
+
+.bz_step.bz_done {
+    color: #00ff88;
+    background-color: rgba(0, 255, 136, 0.2);
+}
+
+.bz_step_arrow {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0px 6px;
+    vertical-align: center;
+}
+
+.bz_draw_info {
+    font-size: 14px;
+    color: #f8fafc;
+    margin-top: 8px;
+    line-height: 20px;
+}
+
+.bz_draw_keys {
+    font-size: 12px;
+    color: #fbbf24;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================================================= */
+/* ANA BÖLGE MENÜSÜ                                                          */
+/* ========================================================================= */
+.bz_menu_panel {
+    horizontal-align: left;
+    vertical-align: center;
+    margin-left: 80px;
+    width: 480px;
+    background-color: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-left: 4px solid #38bdf8;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0px 16px 40px rgba(0, 0, 0, 0.7);
+    flow-children: down;
+    opacity: 0.0;
+    transform: translateX(-40px);
+    transition: opacity 0.25s ease-in-out, transform 0.25s ease-in-out;
+}
+
+.bz_menu_panel.bz_open {
+    opacity: 1.0;
+    transform: translateX(0px);
+}
+
+/* Başlık */
+.bz_header {
+    width: 100%;
+    flow-children: right;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.bz_header_left {
+    flow-children: down;
+    width: fill-parent-flow(1.0);
+}
+
+.bz_logo_badge {
+    font-size: 10px;
+    font-weight: bold;
+    color: #38bdf8;
+    letter-spacing: 2px;
+}
+
+.bz_title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-top: 2px;
+}
+
+.bz_subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.bz_header_right {
+    flow-children: right;
+    vertical-align: top;
+}
+
+.bz_page {
+    font-size: 12px;
+    color: #cbd5e1;
+    vertical-align: center;
+    margin-right: 12px;
+}
+
+.bz_header_btn {
+    background-color: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin-left: 6px;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.bz_header_btn:hover {
+    background-color: #38bdf8;
+}
+
+.bz_header_btn Label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.bz_close_btn:hover {
+    background-color: #ef4444;
+}
+
+/* Satırlar */
+.bz_rows_container {
+    width: 100%;
+    flow-children: down;
+    margin-top: 12px;
+}
+
+.bz_row {
+    width: 100%;
+    height: 38px;
+    flow-children: right;
+    margin-bottom: 4px;
+    background-color: rgba(30, 41, 59, 0.5);
+    border-radius: 6px;
+    transition: background-color 0.15s, transform 0.15s;
+}
+
+.bz_row.bz_hidden {
+    visibility: collapse;
+}
+
+.bz_row:hover {
+    background-color: rgba(51, 65, 85, 0.8);
+}
+
+.bz_row.bz_selected {
+    background-color: rgba(56, 189, 248, 0.25);
+    border: 1px solid #38bdf8;
+    box-shadow: 0px 0px 10px rgba(56, 189, 248, 0.3);
+}
+
+.bz_row_click {
+    width: fill-parent-flow(1.0);
+    height: 100%;
+    flow-children: right;
+    padding: 0px 12px;
+    background-color: transparent;
+    border: none;
+}
+
+.bz_row_label {
+    font-size: 14px;
+    color: #f1f5f9;
+    vertical-align: center;
+    width: fill-parent-flow(1.0);
+}
+
+.bz_row_value {
+    font-size: 13px;
+    font-weight: bold;
+    color: #94a3b8;
+    vertical-align: center;
+}
+
+/* Satır stilleri */
+.bz_row.bz_on .bz_row_value { color: #22c55e; }
+.bz_row.bz_off .bz_row_value { color: #ef4444; }
+.bz_row.bz_danger .bz_row_label { color: #f87171; }
+.bz_row.bz_accent .bz_row_label { color: #38bdf8; }
+.bz_row.bz_muted .bz_row_label { color: #64748b; }
+
+.bz_arrow_btn {
+    width: 32px;
+    height: 100%;
+    background-color: transparent;
+    border: none;
+    opacity: 0.0;
+    transition: opacity 0.15s, background-color 0.15s;
+}
+
+.bz_row.bz_arrows .bz_arrow_btn {
+    opacity: 0.7;
+}
+
+.bz_arrow_btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    opacity: 1.0;
+}
+
+.bz_arrow_btn Label {
+    font-size: 12px;
+    color: #38bdf8;
+    horizontal-align: center;
+    vertical-align: center;
+}
+
+/* Prompt */
+.bz_prompt {
+    font-size: 13px;
+    color: #fbbf24;
+    background-color: rgba(251, 191, 36, 0.15);
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin-top: 8px;
+    width: 100%;
+    visibility: collapse;
+}
+
+.bz_prompt.bz_open {
+    visibility: visible;
+}
+
+/* Footer & Navigasyon */
+.bz_footer {
+    width: 100%;
+    flow-children: right;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.bz_nav_btn {
+    width: fill-parent-flow(1.0);
+    height: 32px;
+    margin: 0px 3px;
+    background-color: rgba(51, 65, 85, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 6px;
+    transition: background-color 0.15s;
+}
+
+.bz_nav_btn:hover {
+    background-color: rgba(56, 189, 248, 0.4);
+    border-color: #38bdf8;
+}
+
+.bz_nav_btn.bz_disabled {
+    opacity: 0.3;
+}
+
+.bz_nav_btn Label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffffff;
+    horizontal-align: center;
+    vertical-align: center;
+}
+
+.bz_hint {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 8px;
+    horizontal-align: center;
+}
+

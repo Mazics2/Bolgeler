@@ -1,0 +1,151 @@
+<root>
+    <styles>
+        <include src="s2r://panorama/styles/csgostyles.vcss_c" />
+        <include src="file://{resources}/styles/custom_game/bolgeler.css" />
+    </styles>
+
+    <Panel class="bz_root" hittest="false">
+
+        <!-- ==================== BÖLGE BİLGİ HUD (Sol Alt) ==================== -->
+        <Panel id="bz_info" class="bz_info_panel" hittest="false">
+            <Panel class="bz_info_badge" hittest="false">
+                <Label id="bz_info_title" class="bz_info_title" text="{s:v}" />
+                <Label id="bz_info_effects" class="bz_info_effects" text="{s:v}" />
+            </Panel>
+        </Panel>
+
+        <!-- ==================== ÇİZİM MODU HUD (Ekran Ortası / Üst) ==================== -->
+        <Panel id="bz_draw" class="bz_draw_panel" hittest="false">
+            <Panel class="bz_draw_card" hittest="false">
+                <Panel class="bz_draw_header" hittest="false">
+                    <Label id="bz_draw_title" class="bz_draw_title" text="{s:v}" />
+                    <Panel class="bz_draw_steps" hittest="false">
+                        <Label id="bz_step1" class="bz_step" text="1. Nokta" />
+                        <Label class="bz_step_arrow" text="➔" />
+                        <Label id="bz_step2" class="bz_step" text="2. Nokta" />
+                    </Panel>
+                </Panel>
+                <Label id="bz_draw_info" class="bz_draw_info" text="{s:v}" />
+                <Label id="bz_draw_keys" class="bz_draw_keys" text="{s:v}" />
+            </Panel>
+        </Panel>
+
+        <!-- ==================== ANA BÖLGE MENÜSÜ ==================== -->
+        <Panel id="bz_menu" class="bz_menu_panel" hittest="true">
+            <!-- Başlık Bölümü -->
+            <Panel class="bz_header">
+                <Panel class="bz_header_left">
+                    <Label class="bz_logo_badge" text="BÖLGELER" />
+                    <Label id="bz_title" class="bz_title" text="{s:v}" />
+                    <Label id="bz_subtitle" class="bz_subtitle" text="{s:v}" />
+                </Panel>
+                <Panel class="bz_header_right">
+                    <Label id="bz_page" class="bz_page" text="{s:v}" />
+                    <Button id="bz_cursor" class="bz_header_btn" onactivate="">
+                        <Label text="🖱️ Fare" />
+                    </Button>
+                    <Button id="bz_close" class="bz_header_btn bz_close_btn" onactivate="">
+                        <Label text="✕" />
+                    </Button>
+                </Panel>
+            </Panel>
+
+            <!-- Satırlar (Maksimum 8 Satır) -->
+            <Panel class="bz_rows_container">
+                <!-- Row 0 -->
+                <Panel id="bz_row0" class="bz_row">
+                    <Button id="bz_row0_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row0" class="bz_row_click" onactivate="">
+                        <Label id="bz_row0_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row0_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row0_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 1 -->
+                <Panel id="bz_row1" class="bz_row">
+                    <Button id="bz_row1_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row1" class="bz_row_click" onactivate="">
+                        <Label id="bz_row1_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row1_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row1_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 2 -->
+                <Panel id="bz_row2" class="bz_row">
+                    <Button id="bz_row2_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row2" class="bz_row_click" onactivate="">
+                        <Label id="bz_row2_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row2_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row2_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 3 -->
+                <Panel id="bz_row3" class="bz_row">
+                    <Button id="bz_row3_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row3" class="bz_row_click" onactivate="">
+                        <Label id="bz_row3_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row3_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row3_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 4 -->
+                <Panel id="bz_row4" class="bz_row">
+                    <Button id="bz_row4_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row4" class="bz_row_click" onactivate="">
+                        <Label id="bz_row4_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row4_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row4_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 5 -->
+                <Panel id="bz_row5" class="bz_row">
+                    <Button id="bz_row5_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row5" class="bz_row_click" onactivate="">
+                        <Label id="bz_row5_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row5_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row5_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 6 -->
+                <Panel id="bz_row6" class="bz_row">
+                    <Button id="bz_row6_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row6" class="bz_row_click" onactivate="">
+                        <Label id="bz_row6_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row6_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row6_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+
+                <!-- Row 7 -->
+                <Panel id="bz_row7" class="bz_row">
+                    <Button id="bz_row7_left" class="bz_arrow_btn" onactivate=""><Label text="◀" /></Button>
+                    <Button id="bz_row7" class="bz_row_click" onactivate="">
+                        <Label id="bz_row7_label" class="bz_row_label" text="{s:v}" />
+                        <Label id="bz_row7_value" class="bz_row_value" text="{s:v}" />
+                    </Button>
+                    <Button id="bz_row7_right" class="bz_arrow_btn" onactivate=""><Label text="▶" /></Button>
+                </Panel>
+            </Panel>
+
+            <!-- Prompt & Alt Bilgi -->
+            <Label id="bz_prompt" class="bz_prompt" text="{s:v}" />
+
+            <!-- Navigasyon Alt Butonları -->
+            <Panel class="bz_footer">
+                <Button id="bz_back" class="bz_nav_btn" onactivate=""><Label text="⮌ Geri" /></Button>
+                <Button id="bz_prev" class="bz_nav_btn" onactivate=""><Label text="« Önceki" /></Button>
+                <Button id="bz_next" class="bz_nav_btn" onactivate=""><Label text="Sonraki »" /></Button>
+            </Panel>
+
+            <Label id="bz_hint" class="bz_hint" text="{s:v}" />
+        </Panel>
+
+    </Panel>
+</root>
+
