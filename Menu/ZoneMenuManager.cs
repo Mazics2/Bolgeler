@@ -1,3 +1,4 @@
+using MenuApi.API;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Events;
 using SwiftlyS2.Shared.Natives;
@@ -23,9 +24,14 @@ public class ZoneMenuManager
     private readonly HudService _hud;
     private readonly PluginConfig _config;
 
+    public IMenuApi? MenuApi { get; set; }
+
     private readonly Dictionary<int, MenuSession> _sessions = new();
     private readonly HashSet<int> _persistentAdminViewers = new();
     private readonly Dictionary<int, string> _editingZoneId = new();
+    private readonly Dictionary<int, float> _transformSteps = new();
+    private static readonly float[] StepSizes = { 4f, 16f, 32f, 64f, 128f };
+    private static readonly string[] StepLabels = { "4 px (Hassas)", "16 px (Normal)", "32 px (Orta)", "64 px (Geniş)", "128 px (Hızlı)" };
 
     public ZoneMenuManager(
         ISwiftlyCore core,
@@ -52,16 +58,37 @@ public class ZoneMenuManager
             var set = new HashSet<int>(_persistentAdminViewers);
             foreach (var s in _sessions.Keys) set.Add(s);
             foreach (var s in _drawing.ActiveSlots) set.Add(s);
+            foreach (var s in _editingZoneId.Keys) set.Add(s);
             return set;
         }
     }
 
     public IReadOnlySet<string> HighlightedZones => _editingZoneId.Values.ToHashSet();
 
-    public bool IsMenuOpen(int slot) => _sessions.ContainsKey(slot);
+    public bool IsMenuOpen(int slot)
+    {
+        if (_sessions.ContainsKey(slot)) return true;
+        if (MenuApi != null)
+        {
+            var p = _core.PlayerManager.GetPlayer(slot);
+            if (p != null && p.IsValid && MenuApi.HasActiveMenu(p))
+            {
+                var active = MenuApi.GetActiveMenu(p);
+                if (active != null && active.Id.StartsWith("bolgeler.", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        return false;
+    }
 
     public void OpenMainMenu(IPlayer player)
     {
+        if (MenuApi != null)
+        {
+            OpenMenuApiFromSession(player, BuildMainMenu);
+            return;
+        }
+
         _sessions[player.Slot] = new MenuSession(BuildMainMenu)
         {
             LastButtons = player.PressedButtons,
@@ -71,8 +98,102 @@ public class ZoneMenuManager
         player.SendChat($"{_config.ChatPrefix} Bölge menüsü açıldı! [Lime]W/S[Default]: Gezin | [Lime]A/D[Default]: Değer | [Lime]E[Default]: Seç | [Lime]R[Default]: Geri/Kapat");
     }
 
+    private void OpenMenuApiFromSession(IPlayer player, MenuFactory rootFactory, MenuFactory? initialPageFactory = null)
+    {
+        var session = new MenuSession(rootFactory)
+        {
+            LastButtons = player.PressedButtons,
+            LastKeyTime = Services.ZoneStore.SafeCurrentTime(_core)
+        };
+        if (initialPageFactory != null)
+        {
+            session.Push(initialPageFactory);
+        }
+        _sessions[player.Slot] = session;
+        RenderMenuApiPage(player, 0);
+    }
+
+    private void RenderMenuApiPage(IPlayer player, int pageIndex = 0)
+    {
+        if (MenuApi == null) return;
+        if (!_sessions.TryGetValue(player.Slot, out var session)) return;
+
+        var page = session.Current(player);
+        var builder = MenuApi.CreateBuilder($"bolgeler.page.{player.Slot}", page.Title)
+            .SetTheme(MenuTheme.Blue)
+            .SetItemsPerPage(7)
+            .SetTimeout(TimeSpan.FromSeconds(60))
+            .EnableSounds(true)
+            .EnableSlotSelection(true)
+            .EnableChatSelection(true);
+
+        if (!string.IsNullOrWhiteSpace(page.Subtitle))
+        {
+            builder.SetSubtitle(page.Subtitle);
+        }
+
+        for (int i = 0; i < page.Items.Count; i++)
+        {
+            var item = page.Items[i];
+            int idx = i;
+            string valStr = string.IsNullOrWhiteSpace(item.Value) ? "" : $" [{item.Value}]";
+            string text = $"{item.Label}{valStr}";
+            string? color = item.Style switch
+            {
+                RowStyle.Accent => "#38BDF8",
+                RowStyle.Danger => "#FF5555",
+                RowStyle.Muted => "#94A3B8",
+                _ => null
+            };
+
+            if (item.HasArrows)
+            {
+                builder.AddItem($"{text} (+)", ctx =>
+                {
+                    if (!_sessions.ContainsKey(ctx.Player.Slot)) return;
+                    item.Adjust(ctx.Player, +1);
+                    if (_sessions.ContainsKey(ctx.Player.Slot))
+                        RenderMenuApiPage(ctx.Player, ctx.PageIndex);
+                }, color ?? "#FACC15", enabled: true, closeOnSelect: false);
+            }
+            else
+            {
+                builder.AddItem(text, ctx =>
+                {
+                    if (!_sessions.ContainsKey(ctx.Player.Slot)) return;
+                    int beforeDepth = session.CanGoBack ? 1 : 0;
+                    item.Select(ctx.Player);
+                    if (_sessions.ContainsKey(ctx.Player.Slot) && !_chatInput.IsWaiting(ctx.Player.Slot) && !_drawing.IsDrawing(ctx.Player.Slot))
+                    {
+                        RenderMenuApiPage(ctx.Player, 0);
+                    }
+                }, color ?? "#E2E8F0", enabled: item.Style != RowStyle.Muted, closeOnSelect: false);
+            }
+        }
+
+        if (session.CanGoBack)
+        {
+            builder.AddItem("⬅️ Geri Dön", ctx =>
+            {
+                if (_sessions.TryGetValue(ctx.Player.Slot, out var s))
+                {
+                    if (s.Back())
+                        RenderMenuApiPage(ctx.Player, 0);
+                    else
+                        CloseMenu(ctx.Player);
+                }
+            }, "#FFB000", enabled: true, closeOnSelect: false);
+        }
+
+        builder.Open(player, pageIndex);
+    }
+
     public void CloseMenu(IPlayer player)
     {
+        if (MenuApi != null && MenuApi.HasActiveMenu(player))
+        {
+            MenuApi.CloseMenu(player);
+        }
         if (_sessions.Remove(player.Slot))
         {
             _editingZoneId.Remove(player.Slot);
@@ -106,6 +227,10 @@ public class ZoneMenuManager
             var pawn = player.PlayerPawn;
             if (pawn == null || !pawn.IsValid) return;
 
+            // Admin Noclip modundaysa noclip durumunu bozma
+            if (pawn.MoveType == MoveType_t.MOVETYPE_NOCLIP || pawn.ActualMoveType == MoveType_t.MOVETYPE_NOCLIP)
+                return;
+
             var targetMoveType = freeze ? MoveType_t.MOVETYPE_NONE : MoveType_t.MOVETYPE_WALK;
             if (pawn.MoveType != targetMoveType)
             {
@@ -137,6 +262,7 @@ public class ZoneMenuManager
 
     public void PollPlayerInput(IPlayer player)
     {
+        if (MenuApi != null) return;
         if (!_sessions.TryGetValue(player.Slot, out var session)) return;
 
         if (_config.FreezeWhileMenuOpen)
@@ -161,6 +287,7 @@ public class ZoneMenuManager
 
     public void OnKeyPressed(IPlayer player, KeyKind key)
     {
+        if (MenuApi != null) return;
         if (!_sessions.TryGetValue(player.Slot, out var session)) return;
 
         var now = Services.ZoneStore.SafeCurrentTime(_core);
@@ -282,9 +409,9 @@ public class ZoneMenuManager
             return new HudFrame { Draw = drawView };
         }
 
-        // 2. Menu acik mi?
+        // 2. Menu acik mi? (MenuApi aktifse kendi CenterHTML/HUD cizimini yapar)
         HudMenuView? menuView = null;
-        if (_sessions.TryGetValue(player.Slot, out var session))
+        if (MenuApi == null && _sessions.TryGetValue(player.Slot, out var session))
         {
             var page = session.Current(player);
             int total = page.Items.Count;
@@ -339,6 +466,7 @@ public class ZoneMenuManager
     private MenuPage BuildMainMenu(IPlayer player)
     {
         _editingZoneId.Remove(player.Slot);
+        int activeCount = _store.Zones.Count(z => z.Enabled);
 
         var items = new List<MenuItem>
         {
@@ -353,9 +481,35 @@ public class ZoneMenuManager
                 }, () => OpenMainMenu(p));
             }, null, RowStyle.Accent),
 
-            new ActionItem($"📁 Bölgeleri Yönet ({_store.Zones.Count})", p =>
+            new ActionItem("📦 Konumuma Kutu Bölge Oluştur (256x256)", p =>
+            {
+                var pawn = p.PlayerPawn;
+                if (pawn == null || !pawn.IsValid || !pawn.AbsOrigin.HasValue)
+                {
+                    p.SendChat($"{_config.ChatPrefix} [Red]Geçerli bir oyuncu konumunuz yok.[Default]");
+                    return;
+                }
+                var pos = pawn.AbsOrigin.Value;
+                var zone = new ZoneData
+                {
+                    Name = _store.NextFreeName(),
+                    Box = new ZoneBox(
+                        new Vector(pos.X - 128f, pos.Y - 128f, pos.Z),
+                        new Vector(pos.X + 128f, pos.Y + 128f, pos.Z + 128f))
+                };
+                _store.Add(zone);
+                p.SendChat($"{_config.ChatPrefix} Konumunuza [Lime]'{zone.Name}'[Default] kutu bölgesi oluşturuldu!");
+                OpenZoneDetailMenu(p, zone.Id);
+            }, () => "Hızlı", RowStyle.Accent),
+
+            new ActionItem($"📁 Bölgeleri Yönet ({activeCount}/{_store.Zones.Count})", p =>
             {
                 _sessions[p.Slot].Push(BuildZoneListMenu);
+            }),
+
+            new ActionItem("⚡ Toplu Bölge İşlemleri", p =>
+            {
+                _sessions[p.Slot].Push(BuildBulkActionsMenu);
             }),
 
             new ToggleItem("👁️ Kalıcı Sınır Görünümü",
@@ -363,6 +517,27 @@ public class ZoneMenuManager
                 (p, val) =>
                 {
                     if (val) _persistentAdminViewers.Add(p.Slot); else _persistentAdminViewers.Remove(p.Slot);
+                }),
+
+            new ToggleItem("🔒 Menü Açıkken Hareketi Kilitle",
+                () => _config.FreezeWhileMenuOpen,
+                (p, val) =>
+                {
+                    _config.FreezeWhileMenuOpen = val;
+                    if (!val)
+                    {
+                        var pawn = p.PlayerPawn;
+                        if (pawn != null && pawn.IsValid && pawn.MoveType == MoveType_t.MOVETYPE_NONE)
+                        {
+                            pawn.MoveType = MoveType_t.MOVETYPE_WALK;
+                            pawn.ActualMoveType = MoveType_t.MOVETYPE_WALK;
+                            pawn.MoveTypeUpdated();
+                        }
+                    }
+                    else
+                    {
+                        SetPlayerFrozen(p, true);
+                    }
                 }),
 
             new ChoiceItem("🎨 HUD Modu",
@@ -382,7 +557,154 @@ public class ZoneMenuManager
         return new MenuPage
         {
             Title = "BÖLGE YÖNETİMİ",
-            Subtitle = $"Harita: {_store.CurrentMap} • Toplam Bölge: {_store.Zones.Count}",
+            Subtitle = $"Harita: {_store.CurrentMap} • Aktif: {activeCount}/{_store.Zones.Count}",
+            Items = items
+        };
+    }
+
+    private MenuPage BuildBulkActionsMenu(IPlayer player)
+    {
+        var items = new List<MenuItem>
+        {
+            new ActionItem("🟢 Tüm Bölgeleri Aktif Et", p =>
+            {
+                foreach (var z in _store.Zones) z.Enabled = true;
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} Tüm bölgeler ({_store.Zones.Count}) [Lime]aktif edildi[Default].");
+            }, null, RowStyle.Accent),
+
+            new ActionItem("🔴 Tüm Bölgeleri Pasif Yap", p =>
+            {
+                foreach (var z in _store.Zones) z.Enabled = false;
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} Tüm bölgeler ({_store.Zones.Count}) [Yellow]pasif yapıldı[Default].");
+            }),
+
+            new ActionItem("🌐 Tüm Bölgelerin Sınırlarını Herkese Aç", p =>
+            {
+                foreach (var z in _store.Zones) z.ShowBorder = true;
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} Tüm bölgelerin sınır görünümü [Lime]herkese açıldı[Default].");
+            }),
+
+            new ActionItem("🙈 Tüm Bölgelerin Sınırlarını Gizle", p =>
+            {
+                foreach (var z in _store.Zones) z.ShowBorder = false;
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} Tüm bölgelerin sınır görünümü [Yellow]gizlendi[Default].");
+            }),
+
+            new ActionItem("⬅️ Ana Menüye Dön", p => _sessions[p.Slot].Back())
+        };
+
+        return new MenuPage
+        {
+            Title = "TOPLU BÖLGE İŞLEMLERİ",
+            Subtitle = $"Harita: {_store.CurrentMap} • {_store.Zones.Count} Bölge",
+            Items = items
+        };
+    }
+
+    private MenuPage BuildZonePresetsMenu(IPlayer player, string zoneId)
+    {
+        var zone = _store.Get(zoneId);
+        if (zone == null)
+        {
+            return new MenuPage
+            {
+                Title = "BÖLGE BULUNAMADI",
+                Items = new List<MenuItem> { new ActionItem("Geri Dön", p => _sessions[p.Slot].Back()) }
+            };
+        }
+
+        var items = new List<MenuItem>
+        {
+            new ActionItem("🛡️ Güvenli Bölge (SafeZone + Şifa)", p =>
+            {
+                zone.GodMode = true;
+                zone.NoDamageOut = true;
+                zone.NoDamageIn = true;
+                zone.NoDamageDealt = false;
+                zone.NoFallDamage = true;
+                zone.Heal = true;
+                zone.HealPerSecond = 15f;
+                zone.HealMax = 100;
+                zone.Armor = true;
+                zone.ArmorPerSecond = 15f;
+                zone.ArmorMax = 100;
+                zone.BlockEntry = false;
+                zone.Color = "#00FF66";
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesine [Lime]Güvenli Bölge (SafeZone)[Default] şablonu uygulandı!");
+                _sessions[p.Slot].Back();
+            }, null, RowStyle.Accent),
+
+            new ActionItem("⛔ Yasaklı Bölge / Rush Engeli (Pushback)", p =>
+            {
+                zone.GodMode = false;
+                zone.NoDamageOut = false;
+                zone.NoDamageIn = false;
+                zone.NoDamageDealt = false;
+                zone.Heal = false;
+                zone.Armor = false;
+                zone.BlockEntry = true;
+                zone.ShowBorder = true;
+                zone.Color = "#FF3333";
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesine [Red]Yasaklı Bölge (Pushback)[Default] şablonu uygulandı!");
+                _sessions[p.Slot].Back();
+            }, null, RowStyle.Danger),
+
+            new ActionItem("⚔️ Arena / Düello Bölgesi (Dış Müdahale Kapalı)", p =>
+            {
+                zone.GodMode = false;
+                zone.NoDamageOut = true;
+                zone.NoDamageIn = true;
+                zone.NoDamageDealt = false;
+                zone.NoFallDamage = true;
+                zone.Heal = false;
+                zone.BlockEntry = false;
+                zone.ShowBorder = true;
+                zone.Color = "#FFD700";
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesine [Yellow]Arena / Düello[Default] şablonu uygulandı!");
+                _sessions[p.Slot].Back();
+            }),
+
+            new ActionItem("🌙 Ay Yerçekimi & Surf Bölgesi (0.4x Gravity)", p =>
+            {
+                zone.Gravity = true;
+                zone.GravityScale = 0.4f;
+                zone.NoFallDamage = true;
+                zone.Color = "#BF00FF";
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesine [Purple]Ay Yerçekimi (0.4x)[Default] şablonu uygulandı!");
+                _sessions[p.Slot].Back();
+            }),
+
+            new ActionItem("🏥 Hızlı Revir İstasyonu (25 HP/s + 25 AP/s)", p =>
+            {
+                zone.GodMode = false;
+                zone.Heal = true;
+                zone.HealPerSecond = 25f;
+                zone.HealMax = 100;
+                zone.Armor = true;
+                zone.ArmorPerSecond = 25f;
+                zone.ArmorMax = 100;
+                zone.ShowBorder = true;
+                zone.Color = "#00C8FF";
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesine [Lime]Revir İstasyonu[Default] şablonu uygulandı!");
+                _sessions[p.Slot].Back();
+            }),
+
+            new ActionItem("⬅️ Bölge Detayına Dön", p => _sessions[p.Slot].Back())
+        };
+
+        return new MenuPage
+        {
+            Title = $"ŞABLON SEÇ: {zone.Name}",
+            Subtitle = "Tek tıkla hazır bölge yapılandırması uygula",
             Items = items
         };
     }
@@ -427,11 +749,16 @@ public class ZoneMenuManager
                 LastButtons = player.PressedButtons,
                 LastKeyTime = Services.ZoneStore.SafeCurrentTime(_core)
             };
-            SetPlayerFrozen(player, true);
+            if (MenuApi == null)
+                SetPlayerFrozen(player, true);
         }
 
         _editingZoneId[player.Slot] = zoneId;
         _sessions[player.Slot].Push(p => BuildZoneDetailMenu(p, zoneId));
+        if (MenuApi != null)
+        {
+            RenderMenuApiPage(player, 0);
+        }
     }
 
     private MenuPage BuildZoneDetailMenu(IPlayer player, string zoneId)
@@ -454,6 +781,7 @@ public class ZoneMenuManager
         {
             new ActionItem("✏️ İsim:", p =>
             {
+                if (MenuApi != null) MenuApi.CloseMenu(p);
                 _chatInput.RequestInput(p, $"{_config.ChatPrefix} Bölgenin yeni ismini chat'e yazın (İptal için '!iptal'):", newName =>
                 {
                     if (!string.IsNullOrWhiteSpace(newName))
@@ -462,10 +790,16 @@ public class ZoneMenuManager
                         _store.Save();
                         p.SendChat($"{_config.ChatPrefix} Bölge adı [Lime]'{zone.Name}'[Default] olarak güncellendi.");
                     }
+                    if (MenuApi != null) OpenZoneDetailMenu(p, zone.Id);
                 });
             }, () => zone.Name, RowStyle.Accent),
 
             new ToggleItem("🟢 Aktif", () => zone.Enabled, (p, v) => { zone.Enabled = v; _store.Save(); }),
+
+            new ActionItem("⚡ Hazır Bölge Şablonu Uygula", p =>
+            {
+                _sessions[p.Slot].Push(pl => BuildZonePresetsMenu(pl, zone.Id));
+            }, () => "5 Şablon", RowStyle.Accent),
 
             new ToggleItem("🛡️ Ölümsüzlük (GodMode)", () => zone.GodMode, (p, v) => { zone.GodMode = v; _store.Save(); }),
 
@@ -527,6 +861,53 @@ public class ZoneMenuManager
                 p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] merkezine ışınlandınız.");
             }),
 
+            new ActionItem("📍 Bölgeyi Konumuma Taşı", p =>
+            {
+                var pawn = p.PlayerPawn;
+                if (pawn == null || !pawn.IsValid || !pawn.AbsOrigin.HasValue) return;
+                var pos = pawn.AbsOrigin.Value;
+                var size = zone.Box.Size;
+                zone.Box = new ZoneBox(
+                    new Vector(pos.X - size.X * 0.5f, pos.Y - size.Y * 0.5f, pos.Z),
+                    new Vector(pos.X + size.X * 0.5f, pos.Y + size.Y * 0.5f, pos.Z + size.Z));
+                _store.Save();
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{zone.Name}'[Default] bölgesi mevcut konumunuza taşındı.");
+            }),
+
+            new ActionItem("📋 Bölgeyi Kopyala (Çoğalt)", p =>
+            {
+                var copy = new ZoneData
+                {
+                    Name = $"{zone.Name} (Kopya)",
+                    Mins = zone.Mins.ToArray(),
+                    Maxs = zone.Maxs.ToArray(),
+                    Enabled = zone.Enabled,
+                    Color = zone.Color,
+                    ShowBorder = zone.ShowBorder,
+                    Team = zone.Team,
+                    GodMode = zone.GodMode,
+                    NoDamageOut = zone.NoDamageOut,
+                    NoDamageIn = zone.NoDamageIn,
+                    NoDamageDealt = zone.NoDamageDealt,
+                    NoFallDamage = zone.NoFallDamage,
+                    Heal = zone.Heal,
+                    HealPerSecond = zone.HealPerSecond,
+                    HealMax = zone.HealMax,
+                    Armor = zone.Armor,
+                    ArmorPerSecond = zone.ArmorPerSecond,
+                    ArmorMax = zone.ArmorMax,
+                    Gravity = zone.Gravity,
+                    GravityScale = zone.GravityScale,
+                    BlockEntry = zone.BlockEntry,
+                    BlockBelowPlayers = zone.BlockBelowPlayers,
+                    Messages = zone.Messages
+                };
+                copy.Box = copy.Box.Offset(32f, 32f, 0f);
+                _store.Add(copy);
+                p.SendChat($"{_config.ChatPrefix} [Lime]'{copy.Name}'[Default] oluşturuldu.");
+                OpenZoneDetailMenu(p, copy.Id);
+            }),
+
             new ActionItem("🗑️ BÖLGEYİ SİL", p =>
             {
                 _store.Remove(zone.Id);
@@ -551,52 +932,81 @@ public class ZoneMenuManager
             return new MenuPage { Title = "Bölge bulunamadı" };
         }
 
-        float step = 16f;
-        var box = zone.Box;
+        float step = _transformSteps.TryGetValue(player.Slot, out var s) ? s : 16f;
+        int stepIdx = Math.Max(0, Array.IndexOf(StepSizes, step));
 
         var items = new List<MenuItem>
         {
+            new ChoiceItem("📏 Hassasiyet (Adım)", StepLabels, () => stepIdx, (p, idx) =>
+            {
+                _transformSteps[p.Slot] = StepSizes[idx];
+            }),
+
             new NumberItem("Kaydır X (Sağ/Sol)", () => zone.Box.Center.X, (p, v) =>
             {
-                zone.Box = zone.Box.Offset(v - zone.Box.Center.X, 0, 0);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float delta = MathF.Sign(v - zone.Box.Center.X) * curStep;
+                zone.Box = zone.Box.Offset(delta, 0, 0);
                 _store.Save();
             }, step, -16384f, 16384f, v => $"{v:0} px"),
 
             new NumberItem("Kaydır Y (İleri/Geri)", () => zone.Box.Center.Y, (p, v) =>
             {
-                zone.Box = zone.Box.Offset(0, v - zone.Box.Center.Y, 0);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float delta = MathF.Sign(v - zone.Box.Center.Y) * curStep;
+                zone.Box = zone.Box.Offset(0, delta, 0);
                 _store.Save();
             }, step, -16384f, 16384f, v => $"{v:0} px"),
 
             new NumberItem("Kaydır Z (Yukarı/Aşağı)", () => zone.Box.Center.Z, (p, v) =>
             {
-                zone.Box = zone.Box.Offset(0, 0, v - zone.Box.Center.Z);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float delta = MathF.Sign(v - zone.Box.Center.Z) * curStep;
+                zone.Box = zone.Box.Offset(0, 0, delta);
                 _store.Save();
             }, step, -16384f, 16384f, v => $"{v:0} px"),
 
             new NumberItem("Genişlik (X)", () => zone.Box.Size.X, (p, v) =>
             {
-                zone.Box = zone.Box.WithSize(v, zone.Box.Size.Y, zone.Box.Size.Z);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float next = Math.Clamp(zone.Box.Size.X + MathF.Sign(v - zone.Box.Size.X) * curStep, 16f, 8192f);
+                zone.Box = zone.Box.WithSize(next, zone.Box.Size.Y, zone.Box.Size.Z);
                 _store.Save();
-            }, step, 16f, 4096f, v => $"{v:0} px"),
+            }, step, 16f, 8192f, v => $"{v:0} px"),
 
             new NumberItem("Uzunluk (Y)", () => zone.Box.Size.Y, (p, v) =>
             {
-                zone.Box = zone.Box.WithSize(zone.Box.Size.X, v, zone.Box.Size.Z);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float next = Math.Clamp(zone.Box.Size.Y + MathF.Sign(v - zone.Box.Size.Y) * curStep, 16f, 8192f);
+                zone.Box = zone.Box.WithSize(zone.Box.Size.X, next, zone.Box.Size.Z);
                 _store.Save();
-            }, step, 16f, 4096f, v => $"{v:0} px"),
+            }, step, 16f, 8192f, v => $"{v:0} px"),
 
             new NumberItem("Yükseklik (Z)", () => zone.Box.Size.Z, (p, v) =>
             {
-                zone.Box = zone.Box.WithSize(zone.Box.Size.X, zone.Box.Size.Y, v);
+                float curStep = _transformSteps.TryGetValue(p.Slot, out var st) ? st : 16f;
+                float next = Math.Clamp(zone.Box.Size.Z + MathF.Sign(v - zone.Box.Size.Z) * curStep, 16f, 8192f);
+                zone.Box = zone.Box.WithSize(zone.Box.Size.X, zone.Box.Size.Y, next);
                 _store.Save();
-            }, step, 16f, 4096f, v => $"{v:0} px")
+            }, step, 16f, 8192f, v => $"{v:0} px"),
+
+            new ActionItem("📍 Bölgeyi Konumuma Hizala", p =>
+            {
+                var pawn = p.PlayerPawn;
+                if (pawn == null || !pawn.IsValid || !pawn.AbsOrigin.HasValue) return;
+                var pos = pawn.AbsOrigin.Value;
+                var sz = zone.Box.Size;
+                zone.Box = new ZoneBox(
+                    new Vector(pos.X - sz.X * 0.5f, pos.Y - sz.Y * 0.5f, pos.Z),
+                    new Vector(pos.X + sz.X * 0.5f, pos.Y + sz.Y * 0.5f, pos.Z + sz.Z));
+                _store.Save();
+            }, null, RowStyle.Accent)
         };
 
         return new MenuPage
         {
             Title = $"{zone.Name} - KONUM & BOYUT",
-            Subtitle = "A/D ile değeri 16px değiştir",
+            Subtitle = $"A/D ile değeri {step:0}px değiştir",
             Items = items
         };
     }

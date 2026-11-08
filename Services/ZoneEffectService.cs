@@ -309,11 +309,23 @@ public class ZoneEffectService
         try
         {
             var victim = ResolvePlayer(ctx.Params.Entity);
+
+            // Eger hasar alan varlik bir oyuncu degilse (prop_physics, func_physbox, kirilabilir cam vb.),
+            // bolge hasar engellerini uygulama ki silahla proplar vurulup hareket ettirilebilsin.
+            if (victim == null) return;
+
             ref var info = ref ctx.Params.Info;
             var attacker = ResolvePlayer(info.Attacker.Value);
 
+            // Konsoldan 'kill' cekildiginde veya admin '!slay' (CommitSuicide) uyguladiginda
+            // GodMode / NoDamageDealt / NoDamageIn bolgeleri bu islemi engellememelidir.
+            if (IsIntentionalSuicideOrSlay(victim, attacker, ref info))
+            {
+                return;
+            }
+
             // Dusme hasari kontrolu
-            if (victim != null && (info.DamageType & DamageTypes_t.DMG_FALL) != 0)
+            if ((info.DamageType & DamageTypes_t.DMG_FALL) != 0)
             {
                 if (IsPlayerInZoneWith(victim, z => z.NoFallDamage || z.GodMode))
                 {
@@ -323,7 +335,7 @@ public class ZoneEffectService
             }
 
             // Kurban Olumsuzluk bolgesindeyse
-            if (victim != null && IsPlayerInZoneWith(victim, z => z.GodMode))
+            if (IsPlayerInZoneWith(victim, z => z.GodMode))
             {
                 ctx.SetHookResult(HookResult.Stop);
                 return;
@@ -343,7 +355,7 @@ public class ZoneEffectService
                 if (attackerZones.Any(z => z.NoDamageOut))
                 {
                     // Eger kurban saldirganla ayni guvenli bolgede degilse hasari durdur
-                    var victimZones = victim != null ? GetActiveZonesForPlayer(victim).Select(z => z.Id).ToHashSet() : new HashSet<string>();
+                    var victimZones = GetActiveZonesForPlayer(victim).Select(z => z.Id).ToHashSet();
                     bool sameSafeZone = attackerZones.Any(z => z.NoDamageOut && victimZones.Contains(z.Id));
                     if (!sameSafeZone)
                     {
@@ -354,7 +366,6 @@ public class ZoneEffectService
             }
 
             // Kurban NoDamageIn bolgesindeyse ve saldirgan bolge disindaysa
-            if (victim != null)
             {
                 var victimZones = GetActiveZonesForPlayer(victim).ToList();
                 if (victimZones.Any(z => z.NoDamageIn))
@@ -373,6 +384,42 @@ public class ZoneEffectService
         {
             _core.Logger.LogError($"[Bolgeler] Hasar kontrolunde hata: {ex.Message}");
         }
+    }
+
+    private static bool IsIntentionalSuicideOrSlay(IPlayer victim, IPlayer? attacker, ref CTakeDamageInfo info)
+    {
+        if (attacker != null && attacker.Slot != victim.Slot)
+            return false;
+
+        if ((info.DamageType & DamageTypes_t.DMG_FALL) != 0)
+            return false;
+
+        // Yuksek intihar/slay hasari (CommitSuicide veya kill komutu genelde >= 400 veya oyuncunun kendisi/world inflictor ile gelir)
+        if (info.Damage >= 400f)
+            return true;
+
+        var inflictor = info.Inflictor.Value;
+        if (inflictor == null || !inflictor.IsValid)
+            return true;
+
+        var infName = (inflictor.DesignerName ?? string.Empty).ToLowerInvariant();
+        if (infName.Contains("projectile") ||
+            infName.Contains("inferno") ||
+            infName.Contains("hegrenade") ||
+            infName.Contains("molotov") ||
+            infName.Contains("incgrenade") ||
+            infName.Contains("flashbang") ||
+            infName.Contains("smokegrenade") ||
+            infName.Contains("decoy") ||
+            infName.Contains("planted_c4"))
+        {
+            return false;
+        }
+
+        return infName.Length == 0 ||
+               infName == "cs_player_pawn" ||
+               infName == "player" ||
+               infName == "worldent";
     }
 
     private static bool MatchesTeam(IPlayer player, ZoneData zone)

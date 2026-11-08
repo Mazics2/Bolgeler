@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using MenuApi.API;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Events;
@@ -32,6 +33,7 @@ public class BolgelerPlugin(ISwiftlyCore core) : BasePlugin(core)
     private HudService? _hud;
     private ZoneEffectService? _effects;
     private ZoneMenuManager? _menu;
+    private IMenuApi? _menuApi;
 
     private readonly List<Guid> _commandGuids = new();
     private readonly Dictionary<int, float> _lastCmdTime = new();
@@ -54,7 +56,10 @@ public class BolgelerPlugin(ISwiftlyCore core) : BasePlugin(core)
             _drawing = new DrawingService(Core, _tracer, _renderer, _config);
             _hud = new HudService(Core, _config);
             _effects = new ZoneEffectService(Core, _store, _pushService, _config);
-            _menu = new ZoneMenuManager(Core, _store, _renderer, _drawing, _chatInput, _hud, _config);
+            _menu = new ZoneMenuManager(Core, _store, _renderer, _drawing, _chatInput, _hud, _config)
+            {
+                MenuApi = _menuApi
+            };
 
             _pushService.Load();
             _chatInput.Load();
@@ -103,6 +108,31 @@ public class BolgelerPlugin(ISwiftlyCore core) : BasePlugin(core)
         catch (Exception ex)
         {
             Core.Logger.LogError($"[Bolgeler] Yukleme sirasinda hata: {ex}");
+        }
+    }
+
+    public override void UseSharedInterface(IInterfaceManager interfaceManager)
+    {
+        if (interfaceManager.HasSharedInterface("MenuApi"))
+        {
+            try
+            {
+                _menuApi = interfaceManager.GetSharedInterface<IMenuApi>("MenuApi");
+                if (_menu != null)
+                {
+                    _menu.MenuApi = _menuApi;
+                }
+                Core.Logger.LogInformation("[Bolgeler] SwiftlyS2-MenuApi arayüzü bağlandı.");
+            }
+            catch (Exception ex)
+            {
+                Core.Logger.LogError(ex, "[Bolgeler] SwiftlyS2-MenuApi bağlanırken hata oluştu.");
+            }
+        }
+        else
+        {
+            _menuApi = null;
+            if (_menu != null) _menu.MenuApi = null;
         }
     }
 

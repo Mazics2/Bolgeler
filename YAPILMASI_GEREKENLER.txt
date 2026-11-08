@@ -1,0 +1,38 @@
+================================================================================
+                    BÖLGELER - HARİTA ALAN YÖNETİCİSİ
+                           YAPILMASI GEREKENLER & ENTEGRASYON
+================================================================================
+Eklenti: Bolgeler (v1.1.0)
+Repo: https://github.com/Mazics2/Bolgeler.git
+
+--------------------------------------------------------------------------------
+1. DURUM & ENTEGRASYON
+--------------------------------------------------------------------------------
+[✓] 1. MenuApi Entegrasyonu:
+    - MenuApi paylaşımlı arayüzü üzerinden "settings:bolgeler" alt sayfası olarak çalışır.
+    - `!bolgeler` komutu hem konsolda hem sohbette sorunsuz açılır.
+
+[✓] 2. Harita Alan Özellikleri:
+    - Dokunulmazlık (Godmode), Hızlandırma/Yavaşlatma, Işınlanma (Teleport) ve Silah Verme/Engelleme
+      bölgeleri desteklenmektedir.
+    - surf_ski_2_go ve diğer haritalarda kayıtlı koordinatlar otomatik yüklenmektedir.
+
+--------------------------------------------------------------------------------
+2. KOMUTLAR
+--------------------------------------------------------------------------------
+* `!bolgeler` / `sw_bolgeler` : Bölge yönetim menüsünü açar.
+* Bölge menüsü içinden:
+  - 1. Noktayı Seç (Göz hizasından zemin/köşe noktası)
+  - 2. Noktayı Seç
+  - Bölgeyi Oluştur (Godmode, Teleport, Speed, NoBuy vb.)
+  - Mevcut Bölgeleri Düzenle / Sil
+
+--------------------------------------------------------------------------------
+3. ORTAĞIMIN YAPMASI GEREKENLER (TODO)
+--------------------------------------------------------------------------------
+1. Harita Bazlı Bölgeler:
+   - Sunucudaki her harita için (özellikle Jailbreak veya Surf) gerekli başlangıç, respawn ve
+     koruma bölgelerini oluşturun.
+2. Koordinatların Kaydedilmesi:
+   - `configs/plugins/Bolgeler/zones_<harita>.json` dosyalarını yedeklemeyi unutmayın.
+================================================================================

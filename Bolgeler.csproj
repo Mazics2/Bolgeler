@@ -16,6 +16,13 @@
     <PackageReference Include="SwiftlyS2.CS2" Version="1.5.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SwiftlyS2-MenuApi\MenuApi.Contract\MenuApi.Contract.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
   <!-- Panorama kaynaklari derlenmez; cikti klasorune referans olarak kopyalanir. -->
   <ItemGroup>
     <None Include="panorama\**\*" CopyToOutputDirectory="PreserveNewest" />
