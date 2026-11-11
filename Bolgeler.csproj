@@ -10,22 +10,12 @@
     <RootNamespace>Bolgeler</RootNamespace>
     <Authors>surfevo</Authors>
     <Company>surfevo</Company>
+    <NuGetAudit>false</NuGetAudit>
+    <NoWarn>$(NoWarn);NU1900;NU1901;NU1902;NU1903;NU1904</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SwiftlyS2.CS2" Version="1.5.0" ExcludeAssets="runtime" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\SwiftlyS2-MenuApi\MenuApi.Contract\MenuApi.Contract.csproj">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </ProjectReference>
-  </ItemGroup>
-
-  <!-- Panorama kaynaklari derlenmez; cikti klasorune referans olarak kopyalanir. -->
-  <ItemGroup>
-    <None Include="panorama\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="SwiftlyS2.CS2" Version="1.5.0" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
 
   <!--

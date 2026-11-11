@@ -7,13 +7,13 @@ using Bolgeler.Services;
 namespace Bolgeler.Hud;
 
 /// <summary>
-/// CS2'nin yerlesik Panorama CenterHTML panelini kullanarak modern ve renkli HUD cizer.
-/// Hicbir workshop addon gerektirmez, her istemcide dogrudan gorunur.
+/// Menü dışı HUD durumlarını (çizim modu adımları ve bölge içi bilgi paneli) CenterHTML üzerinden gösterir.
+/// Herhangi bir Core.Menu oturumu açıkken araya girmez.
 /// </summary>
 public sealed class CenterHtmlRenderer
 {
-    private const int DurationMs = 2000;
-    private const float ResendSeconds = 0.25f;
+    private const int DurationMs = 2500;
+    private const float ResendSeconds = 1.5f;
 
     private readonly ISwiftlyCore _core;
     private readonly Dictionary<int, (string Html, float Time)> _last = new();
@@ -25,12 +25,19 @@ public sealed class CenterHtmlRenderer
 
     public void Render(IPlayer player, HudFrame frame)
     {
+        if (_core.Menu.GetSession(player) != null)
+        {
+            _last.Remove(player.Slot);
+            return;
+        }
+
         var html = Build(frame);
         var now = ZoneStore.SafeCurrentTime(_core);
         if (_last.TryGetValue(player.Slot, out var last) && last.Html == html && now - last.Time < ResendSeconds)
         {
             return;
         }
+
         _last[player.Slot] = (html, now);
         try
         {
@@ -41,14 +48,17 @@ public sealed class CenterHtmlRenderer
 
     public void Clear(IPlayer player)
     {
-        if (_last.Remove(player.Slot))
+        if (!_last.Remove(player.Slot))
+            return;
+
+        if (_core.Menu.GetSession(player) != null)
+            return;
+
+        try
         {
-            try
-            {
-                player.SendCenterHTML(" ", 1);
-            }
-            catch { }
+            player.SendCenterHTML(" ", 1);
         }
+        catch { }
     }
 
     public void OnDisconnect(int slot) => _last.Remove(slot);
@@ -60,63 +70,6 @@ public sealed class CenterHtmlRenderer
     private static string Build(HudFrame f)
     {
         var sb = new StringBuilder();
-        if (f.Menu != null)
-        {
-            var m = f.Menu;
-            sb.Append($"<font class='fontSize-m' color='#38BDF8'><b>✦ {E(m.Title)} ✦</b></font>");
-            if (m.PageCount > 1)
-            {
-                sb.Append($" <font class='fontSize-s' color='#94A3B8'>[{m.Page + 1}/{m.PageCount}]</font>");
-            }
-            sb.Append("<br>");
-
-            if (!string.IsNullOrEmpty(m.Subtitle))
-            {
-                sb.Append($"<font class='fontSize-xs' color='#CBD5E1'>{E(m.Subtitle)}</font><br>");
-            }
-
-            foreach (var row in m.Rows)
-            {
-                var labelColor = row.Selected ? "#FACC15" : row.Style switch
-                {
-                    RowStyle.Danger => "#F87171",
-                    RowStyle.Accent => "#38BDF8",
-                    RowStyle.Muted => "#64748B",
-                    _ => "#F8FAFC",
-                };
-
-                sb.Append("<font class='fontSize-sm'>");
-                sb.Append(row.Selected
-                    ? "<font color='#FACC15'><b>➤ </b></font>"
-                    : "<font color='#475569'>• </font>");
-
-                sb.Append(row.Selected
-                    ? $"<font color='{labelColor}'><b>{E(row.Label)}</b></font>"
-                    : $"<font color='{labelColor}'>{E(row.Label)}</font>");
-
-                if (!string.IsNullOrEmpty(row.Value))
-                {
-                    var valueColor = row.Style switch
-                    {
-                        RowStyle.On => "#4ADE80",
-                        RowStyle.Off => "#F87171",
-                        _ => "#E2E8F0",
-                    };
-                    var v = row.HasArrows ? $"◀ {E(row.Value)} ▶" : $"[{E(row.Value)}]";
-                    sb.Append($" <font color='{valueColor}'><b>{v}</b></font>");
-                }
-                sb.Append("</font><br>");
-            }
-
-            if (!string.IsNullOrEmpty(m.Prompt))
-            {
-                sb.Append($"<font class='fontSize-s' color='#FBBF24'><b>💬 {E(m.Prompt)}</b></font><br>");
-            }
-
-            sb.Append($"<font class='fontSize-xs' color='#94A3B8'>{E(m.Hint)}</font>");
-            return sb.ToString();
-        }
-
         if (f.Draw != null)
         {
             var d = f.Draw;
